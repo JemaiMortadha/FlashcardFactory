@@ -43,13 +43,15 @@ jobs:
     - name: Install CocoaPods dependencies
       run: pod install
     
-    - name: Build iOS App
+    - name: Build iOS App for Device
       run: |
         xcodebuild -workspace FlashcardFactory.xcworkspace \
           -scheme FlashcardFactory \
-          -destination 'generic/platform=iOS Simulator' \
+          -destination 'generic/platform=iOS' \
           -configuration Debug \
+          -sdk iphoneos \
           CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGN_IDENTITY="" \
           -verbose \
           clean build 2>&1 | tee build.log
         
@@ -64,12 +66,28 @@ jobs:
       if: success()
       run: |
         echo "🔍 Searching for .app bundle..."
-        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d | head -n 1)
+        # Search in build output directories
+        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -path "*/Build/Products/Debug-iphoneos/*" -type d | head -n 1)
+        
+        if [ -z "$APP_PATH" ]; then
+          echo "Trying alternative search..."
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d | head -n 1)
+        fi
+        
         echo "📱 Found app at: $APP_PATH"
         
         if [ -z "$APP_PATH" ]; then
           echo "❌ Error: .app bundle not found"
+          echo "Available paths:"
+          find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d
           exit 1
+        fi
+        
+        # Verify Info.plist exists
+        if [ ! -f "$APP_PATH/Info.plist" ]; then
+          echo "⚠️ Warning: Info.plist not found in .app bundle"
+          echo "Contents of .app:"
+          ls -la "$APP_PATH"
         fi
         
         echo "📦 Creating archive..."
