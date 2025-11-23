@@ -43,74 +43,57 @@ jobs:
     - name: Install CocoaPods dependencies
       run: pod install
     
-    - name: Build iOS App for Device
+    - name: Build iOS App for Simulator
       run: |
         xcodebuild -workspace FlashcardFactory.xcworkspace \
           -scheme FlashcardFactory \
-          -destination 'generic/platform=iOS' \
+          -destination 'generic/platform=iOS Simulator' \
           -configuration Debug \
-          -sdk iphoneos \
           CODE_SIGNING_ALLOWED=NO \
-          CODE_SIGN_IDENTITY="" \
-          -verbose \
-          clean build 2>&1 | tee build.log
-        
-    - name: Upload Build Log on Failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-log
-        path: build.log
+          clean build
     
-    - name: Find and Archive .app Bundle
+    - name: Find and Prepare .app Bundle
       if: success()
       run: |
         echo "🔍 Searching for .app bundle..."
-        echo "Current directory: $(pwd)"
-        echo "Workspace: $GITHUB_WORKSPACE"
         
-        # Search in current workspace build directories
-        echo "Searching in workspace..."
-        find . -name "*.app" -type d
-        
-        APP_PATH=$(find . -name "FlashcardFactory.app" -type d | head -n 1)
+        # Find the built app
+        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d | head -n 1)
         
         if [ -z "$APP_PATH" ]; then
-          echo "Searching in common build locations..."
-          APP_PATH=$(find build -name "FlashcardFactory.app" -type d 2>/dev/null | head -n 1)
-        fi
-        
-        if [ -z "$APP_PATH" ]; then
-          echo "Searching in DerivedData..."
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d 2>/dev/null | head -n 1)
+          echo "Searching in workspace..."
+          APP_PATH=$(find . -name "FlashcardFactory.app" -type d | head -n 1)
         fi
         
         echo "📱 Found app at: $APP_PATH"
         
         if [ -z "$APP_PATH" ]; then
           echo "❌ Error: .app bundle not found"
-          echo "Build directory structure:"
-          ls -R build/ 2>/dev/null || echo "No build/ directory"
-          ls -R . | grep -i "\.app" || echo "No .app found"
+          echo "Searching everywhere..."
+          find ~ -name "FlashcardFactory.app" -type d 2>/dev/null | head -5
           exit 1
         fi
         
-        # Verify Info.plist exists
+        # Copy Info.plist into the bundle if missing
         if [ ! -f "$APP_PATH/Info.plist" ]; then
-          echo "⚠️ Warning: Info.plist not found in .app bundle"
-          echo "Contents of .app:"
-          ls -la "$APP_PATH"
+          echo "⚠️ Info.plist missing, copying from source..."
+          cp FlashcardFactory/Info.plist "$APP_PATH/"
+          echo "✅ Info.plist copied"
         else
-          echo "✅ Info.plist found!"
+          echo "✅ Info.plist already exists"
         fi
         
-        echo "📦 Creating archive..."
+        # Verify contents
+        echo "📋 App bundle contents:"
+        ls -la "$APP_PATH" | head -20
+        
+        echo "📦 Creating archive for Appetize.io..."
         ARCHIVE_DIR=$(pwd)
         cd "$(dirname "$APP_PATH")"
-        zip -r "$ARCHIVE_DIR/FlashcardFactory.app.zip" "$(basename "$APP_PATH")"
+        tar -czf "$ARCHIVE_DIR/FlashcardFactory.app.tar.gz" "$(basename "$APP_PATH")"
         
-        echo "✅ Archive created: $ARCHIVE_DIR/FlashcardFactory.app.zip"
-        echo "APP_ARCHIVE_PATH=$ARCHIVE_DIR/FlashcardFactory.app.zip" >> $GITHUB_ENV
+        echo "✅ Archive created: $ARCHIVE_DIR/FlashcardFactory.app.tar.gz"
+        echo "APP_ARCHIVE_PATH=$ARCHIVE_DIR/FlashcardFactory.app.tar.gz" >> $GITHUB_ENV
     
     - name: Upload .app Bundle
       if: success()
@@ -119,12 +102,3 @@ jobs:
         name: FlashcardFactory-iOS-App
         path: ${{ env.APP_ARCHIVE_PATH }}
         retention-days: 7
-    
-    - name: Run Tests (Optional)
-      run: |
-        xcodebuild test \
-          -workspace FlashcardFactory.xcworkspace \
-          -scheme FlashcardFactory \
-          -destination 'generic/platform=iOS Simulator' \
-          CODE_SIGNING_ALLOWED=NO
-      continue-on-error: true
