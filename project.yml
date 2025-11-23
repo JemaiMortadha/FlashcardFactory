@@ -1,0 +1,41 @@
+name: FlashcardFactory
+options:
+  bundleIdPrefix: com.mortadha
+  deploymentTarget:
+    iOS: "15.0"
+  developmentLanguage: Swift
+  
+targets:
+  FlashcardFactory:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: FlashcardFactory
+        excludes:
+          - "*.md"
+    info:
+      path: FlashcardFactory/Info.plist
+      properties:
+        CFBundleDisplayName: FlashCard Factory
+        UILaunchScreen: {}
+    settings:
+      base:
+        PRODUCT_NAME: FlashcardFactory
+        PRODUCT_BUNDLE_IDENTIFIER: com.mortadha.flashcardfactory
+        INFOPLIST_FILE: FlashcardFactory/Info.plist
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        ENABLE_BITCODE: "NO"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+    scheme:
+      testTargets: []
+      gatherCoverageData: false
+    dependencies:
+      - framework: CoreData.framework
+        sdk: iOS

@@ -1,0 +1,73 @@
+name: iOS Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test iOS App
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Install xcodegen
+      run: brew install xcodegen
+    
+    - name: Generate Xcode Project
+      run: xcodegen generate
+    
+    - name: Restore GoogleService-Info.plist from GitHub Secret
+      env:
+        GOOGLE_SERVICE_INFO: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+      run: |
+        echo "$GOOGLE_SERVICE_INFO" | base64 --decode > FlashcardFactory/GoogleService-Info.plist
+      
+    - name: Cache CocoaPods
+      uses: actions/cache@v3
+      with:
+        path: Pods
+        key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-pods-
+    
+    - name: Install CocoaPods dependencies
+      run: pod install
+    
+    - name: Build iOS App
+      run: |
+        xcodebuild -workspace FlashcardFactory.xcworkspace \
+          -scheme FlashcardFactory \
+          -destination 'platform=iOS Simulator,name=iPhone 14,OS=latest' \
+          -configuration Debug \
+          CODE_SIGNING_ALLOWED=NO \
+          clean build \
+          | xcpretty && exit ${PIPESTATUS[0]}
+    
+    - name: Run Tests (Optional)
+      run: |
+        xcodebuild test \
+          -workspace FlashcardFactory.xcworkspace \
+          -scheme FlashcardFactory \
+          -destination 'platform=iOS Simulator,name=iPhone 14,OS=latest' \
+          CODE_SIGNING_ALLOWED=NO \
+          | xcpretty && exit ${PIPESTATUS[0]}
+      continue-on-error: true
+    
+    - name: Upload Build Logs
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: |
+          ~/Library/Logs/DiagnosticReports/
+          ~/Library/Developer/Xcode/DerivedData/

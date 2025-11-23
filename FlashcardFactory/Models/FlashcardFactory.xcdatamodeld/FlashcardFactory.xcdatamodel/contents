@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21513" systemVersion="21G115" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="Flashcard" representedClassName="Flashcard" syncable="YES" codeGenerationType="class">
+        <attribute name="answer" optional="NO" attributeType="String"/>
+        <attribute name="cardID" optional="NO" attributeType="String"/>
+        <attribute name="lastReviewed" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="question" optional="NO" attributeType="String"/>
+        <attribute name="status" optional="NO" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="group" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="StudyGroup" inverseName="flashcards" inverseEntity="StudyGroup"/>
+    </entity>
+    <entity name="StudyGroup" representedClassName="StudyGroup" syncable="YES" codeGenerationType="class">
+        <attribute name="groupID" optional="NO" attributeType="String"/>
+        <attribute name="name" optional="NO" attributeType="String"/>
+        <relationship name="flashcards" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Flashcard" inverseName="group" inverseEntity="Flashcard"/>
+    </entity>
+</model>
