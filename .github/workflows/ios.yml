@@ -66,20 +66,32 @@ jobs:
       if: success()
       run: |
         echo "🔍 Searching for .app bundle..."
-        # Search in build output directories
-        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -path "*/Build/Products/Debug-iphoneos/*" -type d | head -n 1)
+        echo "Current directory: $(pwd)"
+        echo "Workspace: $GITHUB_WORKSPACE"
+        
+        # Search in current workspace build directories
+        echo "Searching in workspace..."
+        find . -name "*.app" -type d
+        
+        APP_PATH=$(find . -name "FlashcardFactory.app" -type d | head -n 1)
         
         if [ -z "$APP_PATH" ]; then
-          echo "Trying alternative search..."
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d | head -n 1)
+          echo "Searching in common build locations..."
+          APP_PATH=$(find build -name "FlashcardFactory.app" -type d 2>/dev/null | head -n 1)
+        fi
+        
+        if [ -z "$APP_PATH" ]; then
+          echo "Searching in DerivedData..."
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d 2>/dev/null | head -n 1)
         fi
         
         echo "📱 Found app at: $APP_PATH"
         
         if [ -z "$APP_PATH" ]; then
           echo "❌ Error: .app bundle not found"
-          echo "Available paths:"
-          find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d
+          echo "Build directory structure:"
+          ls -R build/ 2>/dev/null || echo "No build/ directory"
+          ls -R . | grep -i "\.app" || echo "No .app found"
           exit 1
         fi
         
@@ -88,14 +100,17 @@ jobs:
           echo "⚠️ Warning: Info.plist not found in .app bundle"
           echo "Contents of .app:"
           ls -la "$APP_PATH"
+        else
+          echo "✅ Info.plist found!"
         fi
         
         echo "📦 Creating archive..."
+        ARCHIVE_DIR=$(pwd)
         cd "$(dirname "$APP_PATH")"
-        zip -r FlashcardFactory.app.zip FlashcardFactory.app
+        zip -r "$ARCHIVE_DIR/FlashcardFactory.app.zip" "$(basename "$APP_PATH")"
         
-        echo "✅ Archive created: $(pwd)/FlashcardFactory.app.zip"
-        echo "APP_ARCHIVE_PATH=$(pwd)/FlashcardFactory.app.zip" >> $GITHUB_ENV
+        echo "✅ Archive created: $ARCHIVE_DIR/FlashcardFactory.app.zip"
+        echo "APP_ARCHIVE_PATH=$ARCHIVE_DIR/FlashcardFactory.app.zip" >> $GITHUB_ENV
     
     - name: Upload .app Bundle
       if: success()
