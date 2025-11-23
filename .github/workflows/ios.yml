@@ -60,6 +60,33 @@ jobs:
         name: build-log
         path: build.log
     
+    - name: Find and Archive .app Bundle
+      if: success()
+      run: |
+        echo "🔍 Searching for .app bundle..."
+        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d | head -n 1)
+        echo "📱 Found app at: $APP_PATH"
+        
+        if [ -z "$APP_PATH" ]; then
+          echo "❌ Error: .app bundle not found"
+          exit 1
+        fi
+        
+        echo "📦 Creating archive..."
+        cd "$(dirname "$APP_PATH")"
+        zip -r FlashcardFactory.app.zip FlashcardFactory.app
+        
+        echo "✅ Archive created: $(pwd)/FlashcardFactory.app.zip"
+        echo "APP_ARCHIVE_PATH=$(pwd)/FlashcardFactory.app.zip" >> $GITHUB_ENV
+    
+    - name: Upload .app Bundle
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: FlashcardFactory-iOS-App
+        path: ${{ env.APP_ARCHIVE_PATH }}
+        retention-days: 7
+    
     - name: Run Tests (Optional)
       run: |
         xcodebuild test \
