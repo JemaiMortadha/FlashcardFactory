@@ -36,7 +36,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: Pods
-        key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+        key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile') }}
         restore-keys: |
           ${{ runner.os }}-pods-
     
@@ -62,12 +62,3 @@ jobs:
           CODE_SIGNING_ALLOWED=NO \
           | xcpretty && exit ${PIPESTATUS[0]}
       continue-on-error: true
-    
-    - name: Upload Build Logs
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: |
-          ~/Library/Logs/DiagnosticReports/
-          ~/Library/Developer/Xcode/DerivedData/
