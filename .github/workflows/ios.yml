@@ -47,18 +47,16 @@ jobs:
       run: |
         xcodebuild -workspace FlashcardFactory.xcworkspace \
           -scheme FlashcardFactory \
-          -destination 'platform=iOS Simulator,name=iPhone 14,OS=latest' \
+          -destination 'generic/platform=iOS Simulator' \
           -configuration Debug \
           CODE_SIGNING_ALLOWED=NO \
-          clean build \
-          | xcpretty && exit ${PIPESTATUS[0]}
+          clean build
     
     - name: Run Tests (Optional)
       run: |
         xcodebuild test \
           -workspace FlashcardFactory.xcworkspace \
           -scheme FlashcardFactory \
-          -destination 'platform=iOS Simulator,name=iPhone 14,OS=latest' \
-          CODE_SIGNING_ALLOWED=NO \
-          | xcpretty && exit ${PIPESTATUS[0]}
+          -destination 'generic/platform=iOS Simulator' \
+          CODE_SIGNING_ALLOWED=NO
       continue-on-error: true
