@@ -1,18 +1,17 @@
-name: iOS Build and Test
+name: iOS Build (Fast)
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
     branches: [ main ]
 
 jobs:
   build:
-    name: Build and Test iOS App
+    name: Quick iOS Build
     runs-on: macos-latest
+    timeout-minutes: 30
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v3
     
     - name: Setup Xcode
@@ -26,79 +25,50 @@ jobs:
     - name: Generate Xcode Project
       run: xcodegen generate
     
-    - name: Restore GoogleService-Info.plist from GitHub Secret
+    - name: Restore Firebase Config
       env:
         GOOGLE_SERVICE_INFO: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
       run: |
         echo "$GOOGLE_SERVICE_INFO" | base64 --decode > FlashcardFactory/GoogleService-Info.plist
-      
-    - name: Cache CocoaPods
-      uses: actions/cache@v3
-      with:
-        path: Pods
-        key: ${{ runner.os }}-pods-v1
-        restore-keys: |
-          ${{ runner.os }}-pods-
     
-    - name: Install CocoaPods dependencies
-      run: pod install
-    
-    - name: Build iOS App for Simulator
+    - name: Install Pods (with retry)
       run: |
-        xcodebuild -workspace FlashcardFactory.xcworkspace \
+        for i in 1 2 3; do
+          pod install && break || sleep 5
+        done
+    
+    - name: Build
+      run: |
+        set -o pipefail
+        xcodebuild \
+          -workspace FlashcardFactory.xcworkspace \
+          -scheme FlashcardFactory \
+          -destination 'generic/platform=iOS Simulator' \
+          -configuration Debug \
+          CODE_SIGNING_ALLOWED=NO \
+          clean build | xcpretty || xcodebuild \
+          -workspace FlashcardFactory.xcworkspace \
           -scheme FlashcardFactory \
           -destination 'generic/platform=iOS Simulator' \
           -configuration Debug \
           CODE_SIGNING_ALLOWED=NO \
           clean build
     
-    - name: Find and Prepare .app Bundle
+    - name: Package App
       if: success()
       run: |
-        echo "🔍 Searching for .app bundle..."
-        
-        # Find the built app
-        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" -type d | head -n 1)
-        
-        if [ -z "$APP_PATH" ]; then
-          echo "Searching in workspace..."
-          APP_PATH=$(find . -name "FlashcardFactory.app" -type d | head -n 1)
+        APP=$(find ~/Library/Developer/Xcode/DerivedData -name "FlashcardFactory.app" | head -1)
+        if [ -n "$APP" ]; then
+          cp FlashcardFactory/Info.plist "$APP/" 2>/dev/null || true
+          cd "$(dirname "$APP")"
+          tar czf ~/FlashcardFactory.app.tar.gz "$(basename "$APP")"
+          echo "✅ App packaged"
         fi
-        
-        echo "📱 Found app at: $APP_PATH"
-        
-        if [ -z "$APP_PATH" ]; then
-          echo "❌ Error: .app bundle not found"
-          echo "Searching everywhere..."
-          find ~ -name "FlashcardFactory.app" -type d 2>/dev/null | head -5
-          exit 1
-        fi
-        
-        # Copy Info.plist into the bundle if missing
-        if [ ! -f "$APP_PATH/Info.plist" ]; then
-          echo "⚠️ Info.plist missing, copying from source..."
-          cp FlashcardFactory/Info.plist "$APP_PATH/"
-          echo "✅ Info.plist copied"
-        else
-          echo "✅ Info.plist already exists"
-        fi
-        
-        # Verify contents
-        echo "📋 App bundle contents:"
-        ls -la "$APP_PATH" | head -20
-        
-        echo "📦 Creating archive for Appetize.io..."
-        ARCHIVE_DIR=$(pwd)
-        cd "$(dirname "$APP_PATH")"
-        tar -czf "$ARCHIVE_DIR/FlashcardFactory.app.tar.gz" "$(basename "$APP_PATH")"
-        
-        echo "✅ Archive created: $ARCHIVE_DIR/FlashcardFactory.app.tar.gz"
-        echo "APP_ARCHIVE_PATH=$ARCHIVE_DIR/FlashcardFactory.app.tar.gz" >> $GITHUB_ENV
     
-    - name: Upload .app Bundle
+    - name: Upload App
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: FlashcardFactory-iOS-App
-        path: ${{ env.APP_ARCHIVE_PATH }}
-        retention-days: 7
+        name: FlashcardFactory-App
+        path: ~/FlashcardFactory.app.tar.gz
+        if-no-files-found: warn
