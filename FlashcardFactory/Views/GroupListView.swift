@@ -26,7 +26,7 @@ struct GroupListView: View {
                 List {
                     ForEach(groups) { group in
                         // SYNTAXE DU COURS: NavigationLink pour navigation
-                        NavigationLink(destination: CardCreationView(group: group)) {
+                        NavigationLink(destination: FlashcardListView(group: group)) {
                             GroupRowView(group: group)
                         }
                     }

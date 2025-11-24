@@ -124,7 +124,7 @@ class FirebaseManager: ObservableObject {
     
     func syncFlashcardToFirestore(flashcard: FlashcardModel, completion: @escaping (Error?) -> Void) {
         guard let _ = auth.currentUser?.uid else {
-            completion(NSError(domain: "Firebase", code: -1, userInfo: [NSLocalizedDescriptionKey: "Utilisateur non authentifié"])))
+            completion(NSError(domain: "Firebase", code: -1, userInfo: [NSLocalizedDescriptionKey: "Utilisateur non authentifié"]))
             return
         }
         
